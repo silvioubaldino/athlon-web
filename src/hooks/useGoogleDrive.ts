@@ -18,7 +18,7 @@ export interface DriveFile {
 }
 
 export function useGoogleDrive() {
-  const { driveToken } = useAuth()
+  const { driveToken, signInWithGoogle } = useAuth()
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
 
@@ -26,9 +26,35 @@ export function useGoogleDrive() {
 
   const openPicker = useCallback(
     async (onSelectFolder: (folderId: string) => void) => {
-      if (!apiKey || !driveToken) {
-        toast.error('Token de acesso do Google ou Chave de API indisponível.')
+      if (!apiKey) {
+        toast.error('Chave de API indisponível.')
         return
+      }
+
+      let currentToken = driveToken
+
+      // Validate token before opening picker
+      if (currentToken) {
+        try {
+          const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${currentToken}`)
+          if (!res.ok) {
+            currentToken = null // Forces re-auth below
+          }
+        } catch (e) {
+          // ignore network errors for validation, let it try
+        }
+      }
+
+      if (!currentToken) {
+        toast.info('Autenticando com o Google Drive...')
+        try {
+          await signInWithGoogle()
+          currentToken = localStorage.getItem('drive_token')
+          if (!currentToken) return
+        } catch (e) {
+          toast.error('Acesso ao Google Drive cancelado ou falhou.')
+          return
+        }
       }
 
       try {
@@ -41,7 +67,7 @@ export function useGoogleDrive() {
 
           const picker = new window.google.picker.PickerBuilder()
             .addView(view)
-            .setOAuthToken(driveToken)
+            .setOAuthToken(currentToken)
             .setDeveloperKey(apiKey)
             .setCallback((data: any) => {
               if (data.action === window.google.picker.Action.PICKED) {
@@ -66,13 +92,14 @@ export function useGoogleDrive() {
         console.error(err)
       }
     },
-    [apiKey, driveToken]
+    [apiKey, driveToken, signInWithGoogle]
   )
 
   const fetchFilesInFolder = async (folderId: string): Promise<DriveFile[]> => {
     setIsLoadingFiles(true)
     try {
-      if (!driveToken) throw new Error('Autenticação indisponível')
+      const tokenToUse = localStorage.getItem('drive_token') || driveToken
+      if (!tokenToUse) throw new Error('Autenticação indisponível')
 
       // Load client library if not loaded
       if (!window.gapi.client) {
@@ -81,22 +108,27 @@ export function useGoogleDrive() {
         })
       }
 
-      // We just use standard fetch instead of gapi.client to avoid initialization race conditions,
-      // and because we already have the OAuth token.
       const url = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and mimeType contains 'image/'&fields=files(id, name, mimeType, webViewLink, thumbnailLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`
       
       const response = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${driveToken}`,
+          Authorization: `Bearer ${tokenToUse}`,
         },
       })
 
       const data = await response.json()
-      if (data.error) throw new Error(data.error.message)
+      if (data.error && data.error.code === 401) {
+        toast.error('Sua sessão do Google Drive expirou. Por favor, importe o diretório novamente.')
+        throw new Error(data.error.message)
+      } else if (data.error) {
+        throw new Error(data.error.message)
+      }
 
       return data.files as DriveFile[]
-    } catch (err) {
-      toast.error('Erro ao buscar arquivos da pasta')
+    } catch (err: any) {
+      if (err.message !== 'Autenticação indisponível' && !err.message.includes('Sua sessão')) {
+         toast.error('Erro ao buscar arquivos da pasta')
+      }
       console.error(err)
       return []
     } finally {

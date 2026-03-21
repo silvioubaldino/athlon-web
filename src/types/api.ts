@@ -52,6 +52,8 @@ export interface MediaListItem {
   caption?:    string
   media_date?: string
   author?:     string
+  thumbnail_url?: string
+  mime_type?:  string
   classified:  boolean
   projects:    Project[]
   sports:      Sport[]
@@ -79,22 +81,31 @@ export interface PaginatedResponse<T> {
 // ─── Request types ────────────────────────────────────────────────────────────
 
 export interface CreateMediaRequest {
-  drive_url:   string
-  title?:      string
-  caption?:    string
-  media_date?: string
-  author?:     string
+  drive_url:     string
+  title?:        string
+  caption?:      string
+  media_date?:   string
+  author?:       string
+  thumbnail_url?: string
+  mime_type?:    string
+  project_ids?:  string[]
+  sport_ids?:    string[]
+  athlete_ids?:  string[]
+  event_ids?:    string[]
 }
 
 export interface UpdateMediaRequest {
-  title?:       string
-  caption?:     string
-  media_date?:  string
-  author?:      string
-  project_ids?: string[]
-  sport_ids?:   string[]
-  athlete_ids?: string[]
-  event_ids?:   string[]
+  title?:        string
+  caption?:      string
+  media_date?:   string
+  author?:       string
+  thumbnail_url?: string
+  mime_type?:    string
+  classified?:   boolean
+  project_ids?:  string[]
+  sport_ids?:    string[]
+  athlete_ids?:  string[]
+  event_ids?:    string[]
 }
 
 export interface CreateProjectRequest {

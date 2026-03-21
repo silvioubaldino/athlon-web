@@ -62,7 +62,7 @@ export function useNextUnclassified() {
   return useQuery({
     queryKey: ['media', 'next-unclassified'],
     queryFn:  () =>
-      apiFetch<Media>('/api/v1/media/next-unclassified', { token: token ?? undefined }),
+      apiFetch<Media>('/api/v1/media/classification/next', { token: token ?? undefined }),
     enabled:  !!token,
     staleTime: 0,
     retry: false,

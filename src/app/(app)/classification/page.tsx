@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, FolderOpen, Library } from 'lucide-react'
 import Link from 'next/link'
 import Script from 'next/script'
-import { useCreateMedia, useUpdateMedia } from '@/hooks/api/useMedia'
+import { useCreateMedia } from '@/hooks/api/useMedia'
 import { useProjects } from '@/hooks/api/useProjects'
 import { useSports } from '@/hooks/api/useSports'
 import { useAthletes } from '@/hooks/api/useAthletes'
@@ -24,7 +24,6 @@ export default function ClassificationPage() {
 
   const { openPicker, fetchFilesInFolder, isLoadingFiles } = useGoogleDrive()
   const createMedia = useCreateMedia()
-  const updateMedia = useUpdateMedia()
   
   const [isSaving, setIsSaving] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
@@ -65,28 +64,22 @@ export default function ClassificationPage() {
     if (!pseudoMedia) return
     setIsSaving(true)
     try {
-      // Step 1: Create Media with Drive URL
-      const created = await createMedia.mutateAsync({
+      // Create Media with Drive URL and all tags
+      const requestPayload = {
         drive_url: pseudoMedia.drive_url,
         title: state.title || undefined,
         caption: state.caption || undefined,
         media_date: state.mediaDate || undefined,
         author: state.author || undefined,
-      })
+        thumbnail_url: currentFile?.thumbnailLink || undefined,
+        mime_type: currentFile?.mimeType || undefined,
+        project_ids: state.projectIds.length > 0 ? state.projectIds : undefined,
+        sport_ids: state.sportIds.length > 0 ? state.sportIds : undefined,
+        athlete_ids: state.athleteIds.length > 0 ? state.athleteIds : undefined,
+        event_ids: state.eventIds.length > 0 ? state.eventIds : undefined,
+      }
 
-      // Step 2: Update classifications (project, sport, athlete, event) and set classified=true
-      // Note: Backend might automatically infer 'classified: true' based on the update, or we send it.
-      await updateMedia.mutateAsync({
-        id: created.id,
-        req: {
-          project_ids: state.projectIds.length > 0 ? state.projectIds : undefined,
-          sport_ids: state.sportIds.length > 0 ? state.sportIds : undefined,
-          athlete_ids: state.athleteIds.length > 0 ? state.athleteIds : undefined,
-          event_ids: state.eventIds.length > 0 ? state.eventIds : undefined,
-          // Since UpdateMediaRequest doesn't explicitly expose 'classified', the backend
-          // presumably computes it, or the initial POST does. We send the tags at least.
-        },
-      })
+      await createMedia.mutateAsync(requestPayload)
       
       toast.success('Mídia importada e classificada com sucesso!')
 
