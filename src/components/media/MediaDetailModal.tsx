@@ -94,20 +94,20 @@ export function MediaDetailModal({ mediaId, onClose }: MediaDetailModalProps) {
               )}
 
               {/* Tags */}
-              {media.funding_sources?.length > 0 && (
-                <TagSection label="Fontes de Renda" items={media.funding_sources.map((f) => f.name)} color="purple" />
+              {(media.funding_sources?.length ?? 0) > 0 && (
+                <TagSection label="Fontes de Renda" items={(media.funding_sources ?? []).map((f) => f.name)} color="purple" />
               )}
-              {media.projects.length > 0 && (
-                <TagSection label="Projetos" items={media.projects.map((p) => p.name)} color="blue" />
+              {(media.projects?.length ?? 0) > 0 && (
+                <TagSection label="Projetos" items={(media.projects ?? []).map((p) => p.name)} color="blue" />
               )}
-              {media.sports.length > 0 && (
-                <TagSection label="Modalidades" items={media.sports.map((s) => s.name)} color="green" />
+              {(media.sports?.length ?? 0) > 0 && (
+                <TagSection label="Modalidades" items={(media.sports ?? []).map((s) => s.name)} color="green" />
               )}
-              {media.athletes?.length > 0 && (
-                <TagSection label="Atletas" items={media.athletes.map((a) => a.name)} color="orange" />
+              {(media.athletes?.length ?? 0) > 0 && (
+                <TagSection label="Atletas" items={(media.athletes ?? []).map((a) => a.name)} color="orange" />
               )}
-              {media.events?.length > 0 && (
-                <TagSection label="Eventos" items={media.events.map((e) => e.name)} color="pink" />
+              {(media.events?.length ?? 0) > 0 && (
+                <TagSection label="Eventos" items={(media.events ?? []).map((e) => e.name)} color="pink" />
               )}
 
               {/* Audit */}

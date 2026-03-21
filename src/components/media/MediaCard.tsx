@@ -29,7 +29,7 @@ export function MediaCard({ media, onOpenDetail }: MediaCardProps) {
     ? new Date(media.media_date).toLocaleDateString('pt-BR')
     : null
 
-  const visibleProjects = media.projects.slice(0, 3)
+  const visibleProjects = (media.projects ?? []).slice(0, 3)
 
   return (
     <div
@@ -82,8 +82,8 @@ export function MediaCard({ media, onOpenDetail }: MediaCardProps) {
                   {p.name}
                 </span>
               ))}
-              {media.projects.length > 3 && (
-                <span className="text-xs text-gray-400">+{media.projects.length - 3}</span>
+              {(media.projects?.length ?? 0) > 3 && (
+                <span className="text-xs text-gray-400">+{(media.projects?.length ?? 0) - 3}</span>
               )}
             </div>
           )}

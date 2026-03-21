@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant F as Frontend (React + Google Picker)
+    participant GD as API do Google Drive
+    participant API as Backend (Go)
+    participant DB as PostgreSQL (Neon)
+
+    Note over U,GD: Etapa 1 - Seleção do Diretório via Drive Picker
+    U->>F: Clica em "Importar do Drive"
+    F->>GD: Inicializa Google Picker (Abrindo modal nativo)
+    GD-->>U: Interface Nativa do Google Drive
+    U->>GD: Navega nas pastas e seleciona o "Diretório X"
+    GD-->>F: Retorna metadados do Diretório selecionado (Folder ID)
+
+    Note over F,GD: Etapa 2 - Listagem das Imagens
+    F->>GD: GET /drive/v3/files?q='FolderID'+in+parents
+    Note right of F: O Frontend usa o token de acesso do usuário<br/>para listar os arquivos do diretório.
+    GD-->>F: Lista de arquivos contendo { id, name, thumbnailLink, webViewLink, mimeType }
+    F-->>U: Exibe a lista/grade de imagens na tela prontas para classificar
+
+    Note over U,DB: Etapa 3 - Classificação e Salvamento (Iterativo)
+    loop Para cada imagem a ser classificada
+        U->>F: Preenche Tags (Projetos, Esportes, etc)
+        U->>F: Clica em "Salvar" 
+        F->>API: POST /api/v1/media { drive_url, title, classified: true, project_ids... }
+        API->>API: Valida chaves e unifica metadados
+        API->>DB: INSERT INTO media (...)
+        DB-->>API: Registro Salvo com Sucesso
+        API-->>F: HTTP 201 Created
+        F-->>U: Marca imagem como "Salva/Classificada" na UI
+    end
