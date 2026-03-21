@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCircle, Library } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { CheckCircle, FolderOpen, Library } from 'lucide-react'
 import Link from 'next/link'
-import { useNextUnclassified, useUpdateMedia } from '@/hooks/api/useMedia'
+import Script from 'next/script'
+import { useCreateMedia, useUpdateMedia } from '@/hooks/api/useMedia'
 import { useProjects } from '@/hooks/api/useProjects'
 import { useSports } from '@/hooks/api/useSports'
 import { useAthletes } from '@/hooks/api/useAthletes'
@@ -11,17 +12,44 @@ import { useEvents } from '@/hooks/api/useEvents'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Stage } from './_components/Stage'
 import { ClassificationDock } from './_components/ClassificationDock'
-import { useClassification } from './_hooks/useClassification'
+import { useClassification, ClassificationState } from './_hooks/useClassification'
 import { useClassificationShortcuts } from './_hooks/useClassificationShortcuts'
+import { useGoogleDrive, DriveFile } from '@/hooks/useGoogleDrive'
+import type { Media } from '@/types/api'
+import { toast } from 'sonner'
 
 export default function ClassificationPage() {
-  const { data: media, isLoading, error, refetch } = useNextUnclassified()
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const { openPicker, fetchFilesInFolder, isLoadingFiles } = useGoogleDrive()
+  const createMedia = useCreateMedia()
   const updateMedia = useUpdateMedia()
+  
   const [isSaving, setIsSaving] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
 
+  // Map current DriveFile to a pseudo Media object so `useClassification` can work
+  const currentFile = driveFiles[currentIndex]
+  const pseudoMedia: Media | undefined = currentFile
+    ? {
+        id: currentFile.id,
+        drive_url: currentFile.webViewLink,
+        title: currentFile.name,
+        classified: false,
+        projects: [],
+        sports: [],
+        athletes: [],
+        events: [],
+        funding_sources: [],
+        created_by: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    : undefined
+
   const { state, setValue, reset, isDirty, derivedFundingSources, allowedSportIds } =
-    useClassification(media)
+    useClassification(pseudoMedia)
 
   const { data: allProjects = [] } = useProjects()
   const { data: allSports   = [] } = useSports()
@@ -34,97 +62,170 @@ export default function ClassificationPage() {
   const eventOptions   = events.map((e)      => ({ value: e.id, label: e.name }))
 
   const handleSave = async (advance = false) => {
-    if (!media || !isDirty) return
+    if (!pseudoMedia) return
     setIsSaving(true)
     try {
+      // Step 1: Create Media with Drive URL
+      const created = await createMedia.mutateAsync({
+        drive_url: pseudoMedia.drive_url,
+        title: state.title || undefined,
+        caption: state.caption || undefined,
+        media_date: state.mediaDate || undefined,
+        author: state.author || undefined,
+      })
+
+      // Step 2: Update classifications (project, sport, athlete, event) and set classified=true
+      // Note: Backend might automatically infer 'classified: true' based on the update, or we send it.
       await updateMedia.mutateAsync({
-        id: media.id,
+        id: created.id,
         req: {
-          title:       state.title       || undefined,
-          caption:     state.caption     || undefined,
-          media_date:  state.mediaDate   || undefined,
-          author:      state.author      || undefined,
-          project_ids: state.projectIds,
-          sport_ids:   state.sportIds,
-          athlete_ids: state.athleteIds,
-          event_ids:   state.eventIds,
+          project_ids: state.projectIds.length > 0 ? state.projectIds : undefined,
+          sport_ids: state.sportIds.length > 0 ? state.sportIds : undefined,
+          athlete_ids: state.athleteIds.length > 0 ? state.athleteIds : undefined,
+          event_ids: state.eventIds.length > 0 ? state.eventIds : undefined,
+          // Since UpdateMediaRequest doesn't explicitly expose 'classified', the backend
+          // presumably computes it, or the initial POST does. We send the tags at least.
         },
       })
-      if (advance) refetch()
+      
+      toast.success('Mídia importada e classificada com sucesso!')
+
+      if (advance) {
+        handleNextFile()
+      } else {
+        // Just remove from list and keep index? Or advance?
+        handleNextFile()
+      }
+    } catch (e) {
+      toast.error('Erro ao salvar classificação da mídia.')
+      console.error(e)
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleSkip = () => refetch()
+  const handleNextFile = () => {
+    // Remove current file from the pending array to clear memory and step forward
+    setDriveFiles((prev) => prev.filter((_, i) => i !== currentIndex))
+    // We stay at the same index because the array shifted left
+    // Re-run reset on pseudoMedia when it updates!
+    reset()
+  }
+
+  const handleSkip = () => {
+    // Skip without saving
+    handleNextFile()
+  }
 
   useClassificationShortcuts({
     onSaveAndNext: () => handleSave(true),
     onSave:        () => handleSave(false),
     onSkip:        handleSkip,
-    onOpenDrive:   () => media && window.open(media.drive_url, '_blank'),
+    onOpenDrive:   () => pseudoMedia && window.open(pseudoMedia.drive_url, '_blank'),
     isDirty,
   })
 
-  // Loading
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-10 h-10 rounded-full border-4 border-brand-primary border-t-transparent animate-spin" />
-      </div>
-    )
+  // Start Picker
+  const handleImportDrive = () => {
+    openPicker(async (folderId: string) => {
+      try {
+        const files = await fetchFilesInFolder(folderId)
+        if (files.length === 0) {
+          toast.info('Nenhuma imagem encontrada nesta pasta.')
+          return
+        }
+        setDriveFiles(files)
+        setCurrentIndex(0)
+      } catch (err) {
+        toast.error('Ocorreu um erro ao listar as imagens.')
+      }
+    })
   }
 
-  // Empty — all classified
-  const is404 = (error as { status?: number })?.status === 404 || (!isLoading && !media)
-  if (is404) {
+  // Scripts ready state
+  const [googleScriptsLoaded, setGoogleScriptsLoaded] = useState(false)
+
+  const Scripts = (
+    <>
+      <Script 
+        src="https://apis.google.com/js/api.js" 
+        strategy="lazyOnload" 
+        onLoad={() => setGoogleScriptsLoaded(true)} 
+      />
+      <Script 
+        src="https://accounts.google.com/gsi/client" 
+        strategy="lazyOnload" 
+        onLoad={() => setGoogleScriptsLoaded(true)} 
+      />
+    </>
+  )
+
+  // Loading fetching files
+  if (isLoadingFiles) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="text-center">
-          <EmptyState
-            icon={CheckCircle}
-            title="Todas as mídias foram classificadas!"
-            description="Não há itens pendentes de classificação."
-          />
-          <Link href="/library" className="inline-flex items-center gap-1 text-sm text-brand-primary hover:underline">
-            <Library size={14} />
-            Ver Biblioteca
-          </Link>
+        {Scripts}
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-4 border-brand-primary border-t-transparent animate-spin" />
+          <p className="text-brand-text-muted">Buscando imagens do Google Drive...</p>
         </div>
       </div>
     )
   }
 
-  if (!media) return null
+  // Not classifying anything right now
+  if (driveFiles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32">
+        {Scripts}
+        <div className="text-center">
+          <EmptyState
+            icon={FolderOpen}
+            title="Importe mídias do Google Drive"
+            description="Selecione um diretório para classificar em lote."
+          />
 
+          <button 
+            onClick={handleImportDrive}
+            className="mt-6 px-4 py-2 inline-flex items-center gap-2 text-sm font-semibold text-white bg-brand-primary rounded-input hover:bg-brand-primary-hover transition-colors"
+          >
+            Importar Diretório
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+      // Classifying current file
   return (
     <div className="pb-32">
-      {/* Progress header */}
+      {Scripts}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-brand-text-dark">Classificação</h1>
-        <span className="text-sm text-brand-text-muted bg-white border border-gray-200 rounded-full px-3 py-1">
-          Próxima disponível
+        <h1 className="text-2xl font-bold text-brand-text-dark">Classificação em Lote (Drive)</h1>
+        <span className="text-sm text-brand-text-muted bg-white border border-gray-200 rounded-full px-3 py-1 font-mono">
+          {driveFiles.length} pendente(s)
         </span>
       </div>
 
-      {/* Stage */}
       <div className="max-w-3xl mx-auto">
-        <Stage
-          media={media}
-          title={state.title ?? ''}
-          caption={state.caption ?? ''}
-          onTitleChange={(v) => setValue('title', v)}
-          onCaptionChange={(v) => setValue('caption', v)}
-        />
+        {pseudoMedia && (
+          <Stage
+            media={pseudoMedia}
+            imageUrl={currentFile.thumbnailLink?.replace('=s220', '=s800')}
+            title={state.title ?? ''}
+            caption={state.caption ?? ''}
+            onTitleChange={(v) => setValue('title', v)}
+            onCaptionChange={(v) => setValue('caption', v)}
+          />
+        )}
       </div>
 
-      {/* Dock */}
       <ClassificationDock
         state={state}
         setValue={setValue}
         isDirty={isDirty}
         isSaving={isSaving}
-        isLast={false}
+        isLast={driveFiles.length === 1}
         derivedFundingSources={derivedFundingSources}
         allowedSportIds={allowedSportIds}
         projectOptions={projectOptions}
@@ -137,7 +238,6 @@ export default function ClassificationPage() {
         onReset={reset}
       />
 
-      {/* Unsaved dialog */}
       {showUnsavedDialog && (
         <UnsavedDialog
           onSaveAndContinue={async () => { await handleSave(true); setShowUnsavedDialog(false) }}

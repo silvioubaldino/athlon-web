@@ -23,6 +23,7 @@ import { auth } from '@/lib/firebase'
 interface AuthContextValue {
   user:              FirebaseUser | null
   token:             string | null   // current ID token — memory only, never localStorage
+  driveToken:        string | null   // Google OAuth token for Drive API
   loading:           boolean
   signInWithEmail:   (email: string, password: string) => Promise<void>
   signInWithGoogle:  () => Promise<void>
@@ -38,6 +39,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,    setUser]    = useState<FirebaseUser | null>(null)
   const [token,   setToken]   = useState<string | null>(null)
+  const [driveToken, setDriveToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Subscribe to token changes (covers sign-in, sign-out, and auto-refresh)
@@ -50,9 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null)
         setToken(null)
+        setDriveToken(null)
+        localStorage.removeItem('drive_token')
       }
       setLoading(false)
     })
+
+    // Load drive token from local storage
+    const storedDriveToken = localStorage.getItem('drive_token')
+    if (storedDriveToken) {
+      setDriveToken(storedDriveToken)
+    }
 
     return unsubscribe
   }, [])
@@ -67,16 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider()
-    await signInWithPopup(auth, provider)
+    provider.addScope('https://www.googleapis.com/auth/drive.readonly')
+    const result = await signInWithPopup(auth, provider)
+    const credential = GoogleAuthProvider.credentialFromResult(result)
+    if (credential?.accessToken) {
+      localStorage.setItem('drive_token', credential.accessToken)
+      setDriveToken(credential.accessToken)
+    }
   }, [])
 
   const signOut = useCallback(async () => {
+    setDriveToken(null)
+    localStorage.removeItem('drive_token')
     await firebaseSignOut(auth)
   }, [])
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, signInWithEmail, signInWithGoogle, signOut }}
+      value={{ user, token, driveToken, loading, signInWithEmail, signInWithGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>

@@ -10,9 +10,10 @@ interface StageProps {
   caption:         string
   onTitleChange:   (v: string) => void
   onCaptionChange: (v: string) => void
+  imageUrl?:       string
 }
 
-export function Stage({ media, title, caption, onTitleChange, onCaptionChange }: StageProps) {
+export function Stage({ media, title, caption, onTitleChange, onCaptionChange, imageUrl }: StageProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Auto-resize textarea
@@ -29,20 +30,25 @@ export function Stage({ media, title, caption, onTitleChange, onCaptionChange }:
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-w-0">
-      {/* Placeholder image */}
+      {/* Image Preview */}
       <div
-        className="w-full rounded-card overflow-hidden flex items-center justify-center bg-gray-100"
+        className="w-full rounded-card overflow-hidden flex items-center justify-center bg-gray-100 relative"
         style={{
           maxHeight: '70vh',
           minHeight: 200,
-          backgroundImage:
-            'repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%)',
-          backgroundSize: '24px 24px',
         }}
       >
-        <div className="bg-white/80 rounded-full p-6">
-          <Image size={48} className="text-gray-300" />
-        </div>
+        {imageUrl || media.drive_url ? (
+          <img
+            src={imageUrl || media.drive_url}
+            alt="Mídia"
+            className="w-full h-full object-contain max-h-[70vh]"
+          />
+        ) : (
+          <div className="bg-white/80 rounded-full p-6">
+            <Image size={48} className="text-gray-300" />
+          </div>
+        )}
       </div>
 
       {/* Editable title */}
