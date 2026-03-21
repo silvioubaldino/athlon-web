@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, User, Menu } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -13,6 +13,18 @@ export function AppBar({ onMenuClick }: AppBarProps) {
   const { user, signOut } = useAuth()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
 
   const handleSignOut = async () => {
     await signOut()
@@ -41,7 +53,7 @@ export function AppBar({ onMenuClick }: AppBarProps) {
       </div>
 
       {/* Right: avatar dropdown */}
-      <div className="relative">
+      <div ref={menuRef} className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
           className="w-9 h-9 rounded-full bg-brand-primary text-white text-sm font-semibold flex items-center justify-center hover:bg-brand-primary-hover transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
@@ -52,8 +64,6 @@ export function AppBar({ onMenuClick }: AppBarProps) {
 
         {open && (
           <>
-            {/* Backdrop */}
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
             {/* Dropdown */}
             <div className="absolute right-0 top-11 z-20 w-48 bg-white rounded-card border border-gray-200 shadow-card py-1">
               <div className="px-3 py-2 border-b border-gray-100">

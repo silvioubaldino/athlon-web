@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Loader2, MoreVertical, RotateCcw } from 'lucide-react'
 import { MultiSelect, type MultiSelectOption } from '@/components/ui/MultiSelect'
 import type { FundingSource } from '@/types/api'
@@ -31,6 +31,18 @@ export function ClassificationDock({
   onSaveAndNext, onSave, onSkip, onReset,
 }: ClassificationDockProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpen])
 
   const allSportOptions = sportOptions.map((opt) => ({
     ...opt,
@@ -43,20 +55,19 @@ export function ClassificationDock({
       <div className="max-w-[1280px] mx-auto px-6 py-3">
         <div className="flex flex-wrap gap-3 items-end">
           {/* Fonte de Renda — read-only chips */}
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-gray-500">Fonte de Renda</label>
-            <div className="flex flex-wrap gap-1 min-h-[38px] items-center">
+          <DockField label="Fonte de Renda">
+            <div className="flex flex-wrap gap-1 min-h-[38px] items-center bg-gray-50 border border-transparent px-3 py-1.5 rounded-input min-w-[110px]">
               {derivedFundingSources.length === 0 ? (
-                <span className="text-xs text-gray-300 italic">Automático</span>
+                <span className="text-sm text-gray-400 italic">Automático</span>
               ) : (
                 derivedFundingSources.map((f) => (
-                  <span key={f.id} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-md font-medium">
+                  <span key={f.id} className="text-xs bg-purple-50 border border-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-medium">
                     {f.name}
                   </span>
                 ))
               )}
             </div>
-          </div>
+          </DockField>
 
           <DockField label="Projeto(s)">
             <MultiSelect
@@ -65,6 +76,7 @@ export function ClassificationDock({
               onChange={(v) => setValue('projectIds', v)}
               placeholder="Selecionar..."
               className="w-44"
+              placement="top"
             />
           </DockField>
 
@@ -75,6 +87,7 @@ export function ClassificationDock({
               onChange={(v) => setValue('sportIds', v)}
               placeholder="Selecionar..."
               className="w-44"
+              placement="top"
             />
           </DockField>
 
@@ -85,6 +98,7 @@ export function ClassificationDock({
               onChange={(v) => setValue('eventIds', v)}
               placeholder="Selecionar..."
               className="w-44"
+              placement="top"
             />
           </DockField>
 
@@ -95,6 +109,7 @@ export function ClassificationDock({
               onChange={(v) => setValue('athleteIds', v)}
               placeholder="Selecionar..."
               className="w-44"
+              placement="top"
             />
           </DockField>
 
@@ -142,7 +157,7 @@ export function ClassificationDock({
             </button>
 
             {/* Overflow menu */}
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="p-2 rounded-input text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -151,7 +166,6 @@ export function ClassificationDock({
               </button>
               {menuOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                   <div className="absolute bottom-full right-0 mb-1 z-20 bg-white border border-gray-200 rounded-card shadow-card w-48 py-1">
                     <button
                       onClick={() => { onReset(); setMenuOpen(false) }}

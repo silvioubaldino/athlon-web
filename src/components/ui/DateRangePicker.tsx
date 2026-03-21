@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CalendarIcon, X } from 'lucide-react'
@@ -22,6 +22,18 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState<Date | null>(null)
   const [selecting, setSelecting] = useState<'from' | 'to'>('from')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
 
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date()
@@ -85,7 +97,7 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
   const monthLabel = format(new Date(year, month, 1), 'MMMM yyyy', { locale: ptBR })
 
   return (
-    <div className={cn('relative', className)}>
+    <div ref={containerRef} className={cn('relative', className)}>
       <button
         type="button"
         onClick={() => !disabled && setOpen((v) => !v)}
@@ -106,7 +118,6 @@ export function DateRangePicker({ value, onChange, disabled, className }: DateRa
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute z-20 mt-1 bg-white border border-gray-200 rounded-card shadow-card p-4 w-72">
             {/* Header */}
             <div className="flex items-center justify-between mb-3">

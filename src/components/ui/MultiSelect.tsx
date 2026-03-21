@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, ChevronDown, Check, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ interface MultiSelectProps {
   searchPlaceholder?: string
   disabled?:         boolean
   maxHeight?:        number
+  placement?:        'top' | 'bottom'
   className?:        string
 }
 
@@ -30,11 +31,24 @@ export function MultiSelect({
   searchPlaceholder = 'Buscar...',
   disabled,
   maxHeight = 240,
+  placement = 'bottom',
   className,
 }: MultiSelectProps) {
   const [open,   setOpen]   = useState(false)
   const [search, setSearch] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
 
   const selectedSet = new Set(value)
 
@@ -70,7 +84,7 @@ export function MultiSelect({
   )
 
   return (
-    <div className={cn('relative', className)}>
+    <div ref={containerRef} className={cn('relative', className)}>
       {/* Trigger */}
       <div
         onClick={() => !disabled && setOpen((v) => !v)}
@@ -110,8 +124,12 @@ export function MultiSelect({
       {/* Dropdown */}
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-card shadow-card overflow-hidden">
+          <div
+            className={cn(
+              "absolute z-20 w-full bg-white border border-gray-200 rounded-card shadow-card overflow-hidden",
+              placement === 'top' ? "bottom-full mb-1" : "top-full mt-1"
+            )}
+          >
             {/* Search */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
               <Search size={13} className="text-gray-400 shrink-0" />
