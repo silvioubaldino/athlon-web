@@ -51,7 +51,7 @@ function LibraryContent() {
           description="Tente novamente ou verifique sua conexão."
           action={{ label: 'Tentar novamente', onClick: () => refetch() }}
         />
-      ) : !data || data.items.length === 0 ? (
+      ) : !data || !data.items || data.items.length === 0 ? (
         <EmptyState
           icon={Image}
           title="Nenhuma mídia encontrada"
