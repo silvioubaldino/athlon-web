@@ -38,8 +38,17 @@ export function MediaCard({ media, onOpenDetail }: MediaCardProps) {
     >
       <div className="flex sm:flex-col">
         {/* Thumbnail */}
-        <div className="w-24 sm:w-full aspect-square sm:aspect-video bg-gray-100 flex items-center justify-center shrink-0">
-          <Image size={28} className="text-gray-300" />
+        <div className="w-24 sm:w-full aspect-square sm:aspect-video bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+          {media.thumbnail_url ? (
+            <img 
+              src={media.thumbnail_url} 
+              alt={media.title || 'Thumbnail'} 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <Image size={28} className="text-gray-300" />
+          )}
         </div>
 
         {/* Content */}

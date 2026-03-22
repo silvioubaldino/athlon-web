@@ -50,8 +50,17 @@ export function MediaDetailModal({ mediaId, onClose }: MediaDetailModalProps) {
           ) : (
             <div className="space-y-6">
               {/* Thumbnail placeholder */}
-              <div className="w-full aspect-video bg-gray-100 rounded-card flex items-center justify-center">
-                <Image size={40} className="text-gray-300" />
+              <div className="w-full aspect-video bg-gray-100 rounded-card flex items-center justify-center overflow-hidden">
+                {media.thumbnail_url ? (
+                  <img 
+                    src={media.thumbnail_url} 
+                    alt={media.title || 'Thumbnail'} 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Image size={40} className="text-gray-300" />
+                )}
               </div>
 
               {/* URL */}
