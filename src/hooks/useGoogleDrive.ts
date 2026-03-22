@@ -60,10 +60,11 @@ export function useGoogleDrive() {
       try {
         const loadPicker = () => {
           setIsPickerOpen(true)
-          const view = new window.google.picker.DocsView()
+          const view = new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
             .setIncludeFolders(true)
             .setMimeTypes('application/vnd.google-apps.folder')
             .setSelectFolderEnabled(true)
+            .setParent('root')
 
           const picker = new window.google.picker.PickerBuilder()
             .addView(view)
