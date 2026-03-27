@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { X, ChevronDown, Check, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -50,7 +50,7 @@ export function MultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
-  const selectedSet = new Set(value)
+  const selectedSet = useMemo(() => new Set(value), [value])
 
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(search.toLowerCase())
@@ -58,13 +58,13 @@ export function MultiSelect({
 
   const toggle = useCallback(
     (val: string) => {
-      if (selectedSet.has(val)) {
+      if (value.includes(val)) {
         onChange(value.filter((v) => v !== val))
       } else {
         onChange([...value, val])
       }
     },
-    [value, onChange, selectedSet]
+    [value, onChange]
   )
 
   const remove = (val: string, e: React.MouseEvent) => {

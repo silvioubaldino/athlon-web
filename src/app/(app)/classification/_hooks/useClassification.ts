@@ -56,7 +56,7 @@ export function useClassification(media: Media | undefined) {
 
   useEffect(() => {
     if (media) dispatch({ type: 'RESET', media })
-  }, [media?.id])
+  }, [media])
 
   const setValue = (
     key: keyof Omit<ClassificationState, 'isDirty' | 'mediaId'>,
@@ -66,19 +66,19 @@ export function useClassification(media: Media | undefined) {
   const reset = () => { if (media) dispatch({ type: 'RESET', media }) }
 
   // Derive funding sources from selected projects
-  const { data: apData = [] } = useProjects()
-  const { data: fsData = [] } = useFundingSources()
-  const allProjects    = apData ?? []
-  const fundingSources = fsData ?? []
+  const { data: apData } = useProjects()
+  const { data: fsData } = useFundingSources()
 
   const derivedFundingSources: FundingSource[] = useMemo(() => {
+    const allProjects    = apData ?? []
+    const fundingSources = fsData ?? []
     const fsIds = new Set(
       allProjects
         .filter((p) => state.projectIds?.includes(p.id))
         .map((p) => p.funding_source_id)
     )
     return fundingSources.filter((f) => fsIds.has(f.id))
-  }, [state.projectIds, allProjects, fundingSources])
+  }, [state.projectIds, apData, fsData])
 
   // Derive allowed sport IDs from selected projects
   const p0 = useProjectSports(state.projectIds?.[0] ?? null)
@@ -90,9 +90,9 @@ export function useClassification(media: Media | undefined) {
   const allowedSportIds: string[] = useMemo(() => {
     if (!state.projectIds?.length) return []
     const union = new Set<string>()
-    ;[p0, p1, p2, p3, p4].forEach((q, i) => {
-      if (state.projectIds[i] && q.data) {
-        q.data.forEach((s) => union.add(s.id))
+    ;[p0.data, p1.data, p2.data, p3.data, p4.data].forEach((data, i) => {
+      if (state.projectIds[i] && data) {
+        data.forEach((s) => union.add(s.id))
       }
     })
     return Array.from(union)

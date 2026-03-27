@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, HelpCircle } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/MultiSelect'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
@@ -10,6 +10,7 @@ import { useSports } from '@/hooks/api/useSports'
 import { useAthletes } from '@/hooks/api/useAthletes'
 import { useEvents } from '@/hooks/api/useEvents'
 import type { LibraryFilters } from '../_hooks/useLibraryFilters'
+import type { Project, FundingSource, Sport, Athlete, Event } from '@/types/api'
 
 interface FilterBarProps {
   filters:   LibraryFilters
@@ -31,52 +32,67 @@ export function FilterBar({ filters, setFilter, clearAll, activeCount }: FilterB
     debounceRef.current = setTimeout(() => setFilter('q', val), 300)
   }
 
-  const { data: fsData = [] }  = useFundingSources()
-  const { data: apData = [] }  = useProjects()
-  const { data: asData = [] }  = useSports()
-  const { data: atData = [] }  = useAthletes()
-  const { data: evData = [] }  = useEvents()
+  const { data: fsData } = useFundingSources()
+  const { data: apData } = useProjects()
+  const { data: asData } = useSports()
+  const { data: atData } = useAthletes()
+  const { data: evData } = useEvents()
 
-  const fundingSources = fsData ?? []
-  const allProjects    = apData ?? []
-  const allSports      = asData ?? []
-  const athletes       = atData ?? []
-  const events         = evData ?? []
+  const { fundingSources, allProjects, allSports, athletes, events } = useMemo(() => ({
+    fundingSources: fsData ?? [],
+    allProjects:    apData ?? [],
+    allSports:      asData ?? [],
+    athletes:       atData ?? [],
+    events:         evData ?? [],
+  }), [fsData, apData, asData, atData, evData])
 
   // Derive allowed projects based on selected funding sources
-  const allowedProjectIds = filters.fundingSourceIds.length
-    ? new Set(
-        allProjects
-          .filter((p) => filters.fundingSourceIds.includes(p.funding_source_id))
-          .map((p) => p.id)
-      )
-    : null
+  const allowedProjectIds = useMemo(() => {
+    if (!filters.fundingSourceIds.length) return null
+    return new Set(
+      allProjects
+        .filter((p: Project) => filters.fundingSourceIds.includes(p.funding_source_id))
+        .map((p: Project) => p.id)
+    )
+  }, [filters.fundingSourceIds, allProjects])
 
-  // Derive allowed sports from selected projects (using all projects data)
-  // We'll use per-project sports queries — simplified to checking sports list
-  // For MVP, allowed sports derive from the backend filtering; here we show all
-  // and disable with tooltip when projects are selected but sport not matching.
-  // A full implementation would require fetching sports per project.
+  // Derive allowed sports from selected projects
   const projectSportIds = useProjectSportsUnion(filters.projectIds)
 
-  const fsOptions = fundingSources.map((f) => ({ value: f.id, label: f.name }))
+  const fsOptions = useMemo(() => 
+    fundingSources.map((f: FundingSource) => ({ value: f.id, label: f.name })),
+    [fundingSources]
+  )
 
-  const projectOptions = allProjects.map((p) => ({
-    value:          p.id,
-    label:          p.name,
-    disabled:       allowedProjectIds !== null && !allowedProjectIds.has(p.id),
-    disabledReason: 'Não pertence à fonte de renda selecionada',
-  }))
+  const projectOptions = useMemo(() => 
+    allProjects.map((p: Project) => ({
+      value:          p.id,
+      label:          p.name,
+      disabled:       allowedProjectIds !== null && !allowedProjectIds.has(p.id),
+      disabledReason: 'Não pertence à fonte de renda selecionada',
+    })),
+    [allProjects, allowedProjectIds]
+  )
 
-  const sportOptions = allSports.map((s) => ({
-    value:          s.id,
-    label:          s.name,
-    disabled:       projectSportIds !== null && !projectSportIds.has(s.id),
-    disabledReason: filters.projectIds.length ? 'Modalidade não associada aos projetos selecionados' : 'Selecione um projeto primeiro',
-  }))
+  const sportOptions = useMemo(() => 
+    allSports.map((s: Sport) => ({
+      value:          s.id,
+      label:          s.name,
+      disabled:       projectSportIds !== null && !projectSportIds.has(s.id),
+      disabledReason: filters.projectIds.length ? 'Modalidade não associada aos projetos selecionados' : 'Selecione um projeto primeiro',
+    })),
+    [allSports, projectSportIds, filters.projectIds.length]
+  )
 
-  const athleteOptions = athletes.map((a) => ({ value: a.id, label: a.name }))
-  const eventOptions   = events.map((e)   => ({ value: e.id, label: e.name }))
+  const athleteOptions = useMemo(() => 
+    athletes.map((a: Athlete) => ({ value: a.id, label: a.name })),
+    [athletes]
+  )
+  
+  const eventOptions = useMemo(() => 
+    events.map((e: Event) => ({ value: e.id, label: e.name })),
+    [events]
+  )
 
   const dateRange = {
     from: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
@@ -87,23 +103,23 @@ export function FilterBar({ filters, setFilter, clearAll, activeCount }: FilterB
   const chips: { label: string; onRemove: () => void }[] = []
   if (filters.q) chips.push({ label: `"${filters.q}"`, onRemove: () => setFilter('q', '') })
   filters.fundingSourceIds.forEach((id) => {
-    const name = fundingSources.find((f) => f.id === id)?.name ?? id
+    const name = fundingSources.find((f: FundingSource) => f.id === id)?.name ?? id
     chips.push({ label: name, onRemove: () => setFilter('fundingSourceIds', filters.fundingSourceIds.filter((v) => v !== id)) })
   })
   filters.projectIds.forEach((id) => {
-    const name = allProjects.find((p) => p.id === id)?.name ?? id
+    const name = allProjects.find((p: Project) => p.id === id)?.name ?? id
     chips.push({ label: name, onRemove: () => setFilter('projectIds', filters.projectIds.filter((v) => v !== id)) })
   })
   filters.sportIds.forEach((id) => {
-    const name = allSports.find((s) => s.id === id)?.name ?? id
+    const name = allSports.find((s: Sport) => s.id === id)?.name ?? id
     chips.push({ label: name, onRemove: () => setFilter('sportIds', filters.sportIds.filter((v) => v !== id)) })
   })
   filters.athleteIds.forEach((id) => {
-    const name = athletes.find((a) => a.id === id)?.name ?? id
+    const name = athletes.find((a: Athlete) => a.id === id)?.name ?? id
     chips.push({ label: name, onRemove: () => setFilter('athleteIds', filters.athleteIds.filter((v) => v !== id)) })
   })
   filters.eventIds.forEach((id) => {
-    const name = events.find((e) => e.id === id)?.name ?? id
+    const name = events.find((e: Event) => e.id === id)?.name ?? id
     chips.push({ label: name, onRemove: () => setFilter('eventIds', filters.eventIds.filter((v) => v !== id)) })
   })
 
