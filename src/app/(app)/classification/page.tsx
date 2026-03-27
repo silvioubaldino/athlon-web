@@ -50,10 +50,15 @@ export default function ClassificationPage() {
   const { state, setValue, reset, isDirty, derivedFundingSources, allowedSportIds } =
     useClassification(pseudoMedia)
 
-  const { data: allProjects = [] } = useProjects()
-  const { data: allSports   = [] } = useSports()
-  const { data: athletes    = [] } = useAthletes()
-  const { data: events      = [] } = useEvents()
+  const { data: apData = [] }  = useProjects()
+  const { data: asData = [] }  = useSports()
+  const { data: atData = [] }  = useAthletes()
+  const { data: evData = [] }  = useEvents()
+
+  const allProjects = apData ?? []
+  const allSports   = asData ?? []
+  const athletes    = atData ?? []
+  const events      = evData ?? []
 
   const projectOptions = allProjects.map((p) => ({ value: p.id, label: p.name }))
   const sportOptions   = allSports.map((s)   => ({ value: s.id, label: s.name }))

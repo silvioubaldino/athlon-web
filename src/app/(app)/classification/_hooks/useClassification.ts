@@ -66,8 +66,10 @@ export function useClassification(media: Media | undefined) {
   const reset = () => { if (media) dispatch({ type: 'RESET', media }) }
 
   // Derive funding sources from selected projects
-  const { data: allProjects    = [] } = useProjects()
-  const { data: fundingSources = [] } = useFundingSources()
+  const { data: apData = [] } = useProjects()
+  const { data: fsData = [] } = useFundingSources()
+  const allProjects    = apData ?? []
+  const fundingSources = fsData ?? []
 
   const derivedFundingSources: FundingSource[] = useMemo(() => {
     const fsIds = new Set(

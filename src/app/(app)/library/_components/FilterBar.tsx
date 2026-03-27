@@ -31,11 +31,17 @@ export function FilterBar({ filters, setFilter, clearAll, activeCount }: FilterB
     debounceRef.current = setTimeout(() => setFilter('q', val), 300)
   }
 
-  const { data: fundingSources = [] } = useFundingSources()
-  const { data: allProjects    = [] } = useProjects()
-  const { data: allSports      = [] } = useSports()
-  const { data: athletes       = [] } = useAthletes()
-  const { data: events         = [] } = useEvents()
+  const { data: fsData = [] }  = useFundingSources()
+  const { data: apData = [] }  = useProjects()
+  const { data: asData = [] }  = useSports()
+  const { data: atData = [] }  = useAthletes()
+  const { data: evData = [] }  = useEvents()
+
+  const fundingSources = fsData ?? []
+  const allProjects    = apData ?? []
+  const allSports      = asData ?? []
+  const athletes       = atData ?? []
+  const events         = evData ?? []
 
   // Derive allowed projects based on selected funding sources
   const allowedProjectIds = filters.fundingSourceIds.length

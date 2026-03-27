@@ -27,7 +27,8 @@ export function VocabularyPage<T extends { id: string; name: string }>({
   title, useList, useCreate, useUpdate, useDelete,
   columns = [], CreateForm, EditForm,
 }: VocabularyPageProps<T>) {
-  const { data: items = [], isLoading } = useList()
+  const { data: itemsData = [], isLoading } = useList()
+  const items = itemsData ?? []
   const createMutation = useCreate()
   const updateMutation = useUpdate()
   const deleteMutation = useDelete()

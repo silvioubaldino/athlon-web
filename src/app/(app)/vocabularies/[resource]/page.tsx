@@ -160,8 +160,10 @@ export default function VocabularyResourcePage() {
   const params   = useParams()
   const resource = params.resource as string
 
-  const { data: fundingSources = [] } = useFundingSources()
-  const { data: sports         = [] } = useSports()
+  const { data: fsData = [] } = useFundingSources()
+  const { data: sData  = [] } = useSports()
+  const fundingSources = fsData ?? []
+  const sports         = sData  ?? []
 
   switch (resource) {
     case 'funding-sources':
